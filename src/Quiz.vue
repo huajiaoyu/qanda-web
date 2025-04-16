@@ -1,6 +1,7 @@
 <template>
   <div class="quiz-container">
     <header class="quiz-header">
+      <h1>{{ questionProcess }}</h1>
       <h1>{{ questionText }}</h1>
       <button @click="showAnswer" :disabled="buttonDisables.showAnswer">查看答案</button>
       <div class="button-group">
@@ -30,6 +31,7 @@ const answerText = ref('测试答案');
 const realAnswer = ref("");
 const noteText = ref('');
 const questionText = ref("测试问题")
+const questionProcess = ref("0/?")
 
 const qId = ref('')
 let slotId = ref('');
@@ -46,28 +48,30 @@ const showAnswer = () => {
   answerText.value = realAnswer.value
 };
 
-const loadNextQuestion = async () => {
+const loadQuestion = async () => {
   let response
-  response = await apiClient.get('/question/' + slotId.value + '/next/check');
+  response = await apiClient.get('/question/' + slotId.value + '/check');
   console.log("next check:" + response.data.hasNext)
   if (response.data.hasNext == false) {
     const isConfirmed = confirm('已答完，再刷一次？');
     if (!isConfirmed) {
       return;
-    }
-    else{
+    } else {
       console.log('准备刷新...');
       await apiClient.get('/question/' + slotId.value + '/refresh');
     }
   }
 
-  response = await apiClient.get('/question/' + slotId.value + '/next');
-  console.log("qId:"+response.data.qId)
+  response = await apiClient.get('/question/' + slotId.value + '/current');
+  console.log("qId:" + response.data.qId)
   qId.value = response.data.qId
   questionText.value = response.data.question
   answerText.value = ""
   realAnswer.value = response.data.answer
   noteText.value = ""
+
+  response = await apiClient.get('/question/' + slotId.value + '/process');
+  questionProcess.value = (response.data.cur + 1) + "/" + (response.data.total - 1);
 
   buttonDisables.showAnswer = false
   buttonDisables.option = true
@@ -87,8 +91,10 @@ const handleOption = async (option) => {
       console.log("mark data:" + markQueData.qId);
       response = await apiClient.post('/question/mark', markQueData);
     }
-    // 获取下一个问题
-    loadNextQuestion()
+    // 指针后移
+    response = await apiClient.get('/question/' + slotId.value + '/next');
+    console.log("next:" + response.data.hasNext)
+    loadQuestion()
 
   } catch (error) {
     confirm(error);
@@ -120,7 +126,7 @@ watch(
     (newQuery) => {
       console.log("newQuery:" + newQuery.slotId)
       slotId.value = newQuery.slotId || null;
-      loadNextQuestion()
+      loadQuestion()
       // action.value = newQuery.action || null;
       // this.slotId.value = newQuery.slot || null;
       // console.log("action:" + action)
@@ -128,7 +134,7 @@ watch(
       // if (action.value === 'restart') {
       //   handleRestart();
       // } else if (action.value === 'load') {
-      //   loadNextQuestion(slot.value);
+      //   loadQuestion(slot.value);
       // }
     },
     {immediate: true}
