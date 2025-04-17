@@ -3,7 +3,11 @@
     <header class="quiz-header">
       <h1>{{ questionProcess }}</h1>
       <h1>{{ questionText }}</h1>
-      <button @click="showAnswer" :disabled="buttonDisables.showAnswer">查看答案</button>
+      <div class="button-group">
+        <button @click="showAnswer" :disabled="buttonDisables.showAnswer">查看答案</button>
+        <button @click="showNote" >打开草稿</button>
+
+      </div>
       <div class="button-group">
         <button @click="handleOption('会')"
                 :disabled="buttonDisables.option">会
@@ -16,22 +20,49 @@
       </div>
     </header>
     <main class="quiz-main">
-      <textarea v-model="answerText" placeholder="请输入答案" readonly></textarea>
-      <textarea v-model="noteText" placeholder="请输入草稿"></textarea>
+      <!-- Markdown 渲染区域 -->
+      <div
+          class="markdown-rendered"
+          v-html="renderedAnswer"
+      ></div>
+      <textarea v-if="displays.noteText" v-model="noteText" placeholder="请输入草稿"></textarea>
     </main>
   </div>
 </template>
 
 <script setup>
-import {ref, reactive, watch} from 'vue';
+import {ref, reactive, watch, computed} from 'vue';
 import {useRoute} from 'vue-router';
 import apiClient from '@/axios/axios.js'; // 导入配置好的axios实例
+import {marked} from 'marked';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github.css'; // 引入代码高亮样式
+
+// 初始化 marked 的配置
+marked.setOptions({
+  renderer: new marked.Renderer(),
+  highlight: function (code, language) {
+    const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
+    return hljs.highlight(code, {language: validLanguage}).value;
+  },
+  pedantic: false,
+  gfm: true,
+  breaks: true,
+  sanitize: false,
+  smartLists: true,
+  smartypants: false,
+});
 
 const answerText = ref('测试答案');
 const realAnswer = ref("");
 const noteText = ref('');
 const questionText = ref("测试问题")
 const questionProcess = ref("0/?")
+
+// 计算属性：解析 Markdown 并生成 HTML
+const renderedAnswer = computed(() => {
+  return marked(answerText.value);
+});
 
 const qId = ref('')
 let slotId = ref('');
@@ -41,12 +72,21 @@ const buttonDisables = reactive({
   option: true,
 });
 
+const displays = reactive({
+  noteText: true
+})
+
 const showAnswer = () => {
   // 查看答案的逻辑
   buttonDisables.option = false
   buttonDisables.showAnswer = true
   answerText.value = realAnswer.value
 };
+
+const showNote = () => {
+  displays.noteText = !displays.noteText
+};
+
 
 const loadQuestion = async () => {
   let response
@@ -177,9 +217,20 @@ watch(
 
 textarea {
   width: 100%;
-  height: 200px;
+  height: 400px;
   padding: 1rem;
   border: 1px solid #ccc;
   resize: none;
+}
+
+.markdown-rendered {
+  width: 100%;
+  height: 400px;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+  font-family: Arial, sans-serif;
+  white-space: pre-wrap; /* 保留换行符 */
 }
 </style>
