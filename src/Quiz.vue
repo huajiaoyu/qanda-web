@@ -111,7 +111,7 @@ const loadQuestion = async () => {
   noteText.value = ""
 
   response = await apiClient.get('/question/' + slotId.value + '/process');
-  questionProcess.value = (response.data.cur + 1) + "/" + (response.data.total - 1);
+  questionProcess.value = (response.data.cur) + "/" + (response.data.total);
 
   buttonDisables.showAnswer = false
   buttonDisables.option = true
